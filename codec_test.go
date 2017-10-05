@@ -1,4 +1,4 @@
-package tafgo
+package tarsgo
 
 import (
 	"bytes"

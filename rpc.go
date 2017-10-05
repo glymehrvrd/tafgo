@@ -1,4 +1,4 @@
-package tafgo
+package tarsgo
 
 import (
 	"bufio"
@@ -21,7 +21,7 @@ const (
 	JCEONEWAY = uint8(1)
 )
 
-var ErrTafRPCTimeout = errors.New("Taf RPC timeout")
+var ErrTarsRPCTimeout = errors.New("Tars RPC timeout")
 
 type rpcSession struct {
 	ID int32
@@ -30,7 +30,7 @@ type rpcSession struct {
 
 type rpcChannel struct {
 	Conn    net.Conn
-	ch      chan TafStruct
+	ch      chan TarsStruct
 	idx     int
 	counter int64
 	running bool
@@ -240,7 +240,7 @@ func (c *Client) newRPCChannel(idx int) *rpcChannel {
 		log.Printf("Failed to connect server:%s for reason:%v", addr, err)
 		return nil
 	}
-	rc.ch = make(chan TafStruct, 100)
+	rc.ch = make(chan TarsStruct, 100)
 	go c.rpcChannelWrite(rc)
 	go c.rpcChannelRead(rc)
 	c.clientsMutex.Lock()
@@ -288,7 +288,7 @@ func (c *Client) Invoke(ctype uint8, funcName string, req *bytes.Buffer, ctx map
 	case resp = <-session.ch:
 		break
 	case <-time.After(c.Timeout):
-		err = ErrTafRPCTimeout
+		err = ErrTarsRPCTimeout
 	}
 
 	if nil == resp && nil == err {

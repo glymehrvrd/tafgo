@@ -1,4 +1,4 @@
-package tafgo
+package tarsgo
 
 import (
 	"bytes"
@@ -10,25 +10,25 @@ import (
 )
 
 const (
-	TafHeadeChar        = 0
-	TafHeadeShort       = 1
-	TafHeadeInt32       = 2
-	TafHeadeInt64       = 3
-	TafHeadeFloat       = 4
-	TafHeadeDouble      = 5
-	TafHeadeString1     = 6
-	TafHeadeString4     = 7
-	TafHeadeMap         = 8
-	TafHeadeList        = 9
-	TafHeadeStructBegin = 10
-	TafHeadeStructEnd   = 11
-	TafHeadeZeroTag     = 12
-	TafHeadeSimpleList  = 13
+	TarsHeadeChar        = 0
+	TarsHeadeShort       = 1
+	TarsHeadeInt32       = 2
+	TarsHeadeInt64       = 3
+	TarsHeadeFloat       = 4
+	TarsHeadeDouble      = 5
+	TarsHeadeString1     = 6
+	TarsHeadeString4     = 7
+	TarsHeadeMap         = 8
+	TarsHeadeList        = 9
+	TarsHeadeStructBegin = 10
+	TarsHeadeStructEnd   = 11
+	TarsHeadeZeroTag     = 12
+	TarsHeadeSimpleList  = 13
 )
 
 var ErrBufferPeekOverflow = errors.New("Buffer overflow when peekBuf")
 var ErrJceDecodeRequireNotExist = errors.New("require field not exist, tag:")
-var ErrNotTafStruct = errors.New("Invalid 'TafStruct' value")
+var ErrNotTarsStruct = errors.New("Invalid 'TarsStruct' value")
 
 type InvalidUnmarshalError struct {
 	Type reflect.Type
@@ -36,13 +36,13 @@ type InvalidUnmarshalError struct {
 
 func (e *InvalidUnmarshalError) Error() string {
 	if e.Type == nil {
-		return "taf: Unmarshal(nil)"
+		return "tars: Unmarshal(nil)"
 	}
 
 	if e.Type.Kind() != reflect.Ptr {
-		return "taf: Unmarshal(non-pointer " + e.Type.String() + ")"
+		return "tars: Unmarshal(non-pointer " + e.Type.String() + ")"
 	}
-	return "taf: Unmarshal(nil " + e.Type.String() + ")"
+	return "tars: Unmarshal(nil " + e.Type.String() + ")"
 }
 
 func encodeHeaderTag(tag uint8, tagType uint8, buf *bytes.Buffer) {
@@ -58,18 +58,18 @@ func encodeHeaderTag(tag uint8, tagType uint8, buf *bytes.Buffer) {
 
 func encodeTagBoolValue(buf *bytes.Buffer, tag uint8, bv bool) error {
 	if !bv {
-		encodeHeaderTag(tag, uint8(TafHeadeZeroTag), buf)
+		encodeHeaderTag(tag, uint8(TarsHeadeZeroTag), buf)
 	} else {
-		encodeHeaderTag(tag, uint8(TafHeadeChar), buf)
+		encodeHeaderTag(tag, uint8(TarsHeadeChar), buf)
 		buf.Write([]byte{byte(1)})
 	}
 	return nil
 }
 func encodeTagInt8Value(buf *bytes.Buffer, tag uint8, bv int8) error {
 	if bv == 0 {
-		encodeHeaderTag(tag, uint8(TafHeadeZeroTag), buf)
+		encodeHeaderTag(tag, uint8(TarsHeadeZeroTag), buf)
 	} else {
-		encodeHeaderTag(tag, uint8(TafHeadeChar), buf)
+		encodeHeaderTag(tag, uint8(TarsHeadeChar), buf)
 		buf.Write([]byte{byte(bv)})
 	}
 	return nil
@@ -78,7 +78,7 @@ func encodeTagShortValue(buf *bytes.Buffer, tag uint8, sv int16) error {
 	if sv < (-128) && sv <= 127 {
 		return encodeTagInt8Value(buf, tag, int8(sv))
 	} else {
-		encodeHeaderTag(tag, uint8(TafHeadeShort), buf)
+		encodeHeaderTag(tag, uint8(TarsHeadeShort), buf)
 		binary.Write(buf, binary.BigEndian, sv)
 	}
 	return nil
@@ -87,7 +87,7 @@ func encodeTagIntValue(buf *bytes.Buffer, tag uint8, iv int32) error {
 	if iv >= (-32768) && iv <= 32767 {
 		return encodeTagShortValue(buf, tag, int16(iv))
 	} else {
-		encodeHeaderTag(tag, uint8(TafHeadeInt32), buf)
+		encodeHeaderTag(tag, uint8(TarsHeadeInt32), buf)
 		binary.Write(buf, binary.BigEndian, iv)
 	}
 	return nil
@@ -96,29 +96,29 @@ func encodeTagLongValue(buf *bytes.Buffer, tag uint8, iv int64) error {
 	if iv >= (-2147483647-1) && iv <= 2147483647 {
 		return encodeTagIntValue(buf, tag, int32(iv))
 	} else {
-		encodeHeaderTag(tag, uint8(TafHeadeInt64), buf)
+		encodeHeaderTag(tag, uint8(TarsHeadeInt64), buf)
 		binary.Write(buf, binary.BigEndian, iv)
 	}
 	return nil
 }
 func encodeTagFloatValue(buf *bytes.Buffer, tag uint8, fv float32) error {
-	encodeHeaderTag(tag, uint8(TafHeadeFloat), buf)
+	encodeHeaderTag(tag, uint8(TarsHeadeFloat), buf)
 	binary.Write(buf, binary.BigEndian, fv)
 	return nil
 }
 func encodeTagDoubleValue(buf *bytes.Buffer, tag uint8, dv float64) error {
-	encodeHeaderTag(tag, uint8(TafHeadeDouble), buf)
+	encodeHeaderTag(tag, uint8(TarsHeadeDouble), buf)
 	binary.Write(buf, binary.BigEndian, dv)
 	return nil
 }
 
 func encodeTagStringValue(buf *bytes.Buffer, tag uint8, str string) error {
 	if len(str) > 255 {
-		encodeHeaderTag(tag, uint8(TafHeadeString4), buf)
+		encodeHeaderTag(tag, uint8(TarsHeadeString4), buf)
 		slen := uint32(len(str))
 		binary.Write(buf, binary.BigEndian, slen)
 	} else {
-		encodeHeaderTag(tag, uint8(TafHeadeString1), buf)
+		encodeHeaderTag(tag, uint8(TarsHeadeString1), buf)
 		buf.Write([]byte{byte(len(str))})
 	}
 	buf.Write([]byte(str))
@@ -147,12 +147,12 @@ func encodeValueWithTag(buf *bytes.Buffer, tag uint8, v *reflect.Value) error {
 			v = &rv
 		}
 		if v.Elem().Type().Kind() == reflect.Uint8 {
-			encodeHeaderTag(tag, uint8(TafHeadeSimpleList), buf)
-			encodeHeaderTag(0, uint8(TafHeadeChar), buf)
+			encodeHeaderTag(tag, uint8(TarsHeadeSimpleList), buf)
+			encodeHeaderTag(0, uint8(TarsHeadeChar), buf)
 			encodeTagIntValue(buf, 0, int32(v.Len()))
 			buf.Write(v.Bytes())
 		} else {
-			encodeHeaderTag(tag, uint8(TafHeadeList), buf)
+			encodeHeaderTag(tag, uint8(TarsHeadeList), buf)
 			if v.Type().Kind() == reflect.Slice && v.IsNil() {
 				encodeTagIntValue(buf, 0, 0)
 			} else {
@@ -165,7 +165,7 @@ func encodeValueWithTag(buf *bytes.Buffer, tag uint8, v *reflect.Value) error {
 		}
 		return nil
 	case reflect.Map:
-		encodeHeaderTag(tag, uint8(TafHeadeMap), buf)
+		encodeHeaderTag(tag, uint8(TarsHeadeMap), buf)
 		if v.IsNil() {
 			encodeTagIntValue(buf, 0, 0)
 		} else {
@@ -185,8 +185,8 @@ func encodeValueWithTag(buf *bytes.Buffer, tag uint8, v *reflect.Value) error {
 		rv := reflect.ValueOf(v.Interface())
 		return encodeValueWithTag(buf, tag, &rv)
 	case reflect.Struct:
-		encodeHeaderTag(tag, uint8(TafHeadeStructBegin), buf)
-		ts, ok := v.Interface().(TafStruct)
+		encodeHeaderTag(tag, uint8(TarsHeadeStructBegin), buf)
+		ts, ok := v.Interface().(TarsStruct)
 		if !ok {
 			log.Printf("Invalid type:%v", v.Type())
 		} else {
@@ -201,7 +201,7 @@ func encodeValueWithTag(buf *bytes.Buffer, tag uint8, v *reflect.Value) error {
 		// 		encodeValueWithTag(buf, uint8(tag), &fv)
 		// 	}
 		// }
-		encodeHeaderTag(0, uint8(TafHeadeStructEnd), buf)
+		encodeHeaderTag(0, uint8(TarsHeadeStructEnd), buf)
 	}
 	return nil
 }
@@ -246,7 +246,7 @@ func skipToStructEnd(buf *bytes.Buffer) error {
 		if nil != err {
 			return err
 		}
-		if headType == TafHeadeStructEnd {
+		if headType == TarsHeadeStructEnd {
 			break
 		}
 
@@ -256,32 +256,32 @@ func skipToStructEnd(buf *bytes.Buffer) error {
 
 func skipField(buf *bytes.Buffer, typeValue uint8) error {
 	switch typeValue {
-	case TafHeadeChar:
+	case TarsHeadeChar:
 		buf.Next(1)
-	case TafHeadeShort:
+	case TarsHeadeShort:
 		buf.Next(2)
-	case TafHeadeInt32:
+	case TarsHeadeInt32:
 		buf.Next(4)
-	case TafHeadeInt64:
+	case TarsHeadeInt64:
 		buf.Next(8)
-	case TafHeadeFloat:
+	case TarsHeadeFloat:
 		buf.Next(4)
-	case TafHeadeDouble:
+	case TarsHeadeDouble:
 		buf.Next(8)
-	case TafHeadeString1:
+	case TarsHeadeString1:
 		if buf.Len() < 1 {
 			return ErrBufferPeekOverflow
 		}
 		len := uint8(buf.Bytes()[0])
 		buf.Next(int(len + 1))
-	case TafHeadeString4:
+	case TarsHeadeString4:
 		len := uint32(0)
 		err := binary.Read(buf, binary.BigEndian, &len)
 		if nil != err {
 			return err
 		}
 		buf.Next(int(len))
-	case TafHeadeMap:
+	case TarsHeadeMap:
 		size, err := decodeTagIntValue(buf, 0, true)
 		if nil != err {
 			return err
@@ -292,7 +292,7 @@ func skipField(buf *bytes.Buffer, typeValue uint8) error {
 				return err
 			}
 		}
-	case TafHeadeList:
+	case TarsHeadeList:
 		size, err := decodeTagIntValue(buf, 0, true)
 		if nil != err {
 			return err
@@ -303,13 +303,13 @@ func skipField(buf *bytes.Buffer, typeValue uint8) error {
 				return err
 			}
 		}
-	case TafHeadeSimpleList:
+	case TarsHeadeSimpleList:
 		_, headType, len, err := peekTypeTag(buf)
 		if nil != err {
 			return err
 		}
 		buf.Next(len)
-		if headType != TafHeadeChar {
+		if headType != TarsHeadeChar {
 			return fmt.Errorf("skipField with invalid type, type value: %d, %d.", typeValue, headType)
 		}
 		size, err := decodeTagIntValue(buf, 0, true)
@@ -317,14 +317,14 @@ func skipField(buf *bytes.Buffer, typeValue uint8) error {
 			return err
 		}
 		buf.Next(int(size))
-	case TafHeadeStructBegin:
+	case TarsHeadeStructBegin:
 		err := skipToStructEnd(buf)
 		if nil != err {
 			return err
 		}
-	case TafHeadeStructEnd:
+	case TarsHeadeStructEnd:
 		break
-	case TafHeadeZeroTag:
+	case TarsHeadeZeroTag:
 		break
 	default:
 		return fmt.Errorf("skipField with invalid type, type value:%d.", typeValue)
@@ -338,7 +338,7 @@ func skipToTag(buf *bytes.Buffer, tag uint8) (bool, uint8, uint8, error) {
 		if nil != err {
 			return false, 0, 0, err
 		}
-		if nextHeadType == TafHeadeStructEnd || tag < nextHeadTag {
+		if nextHeadType == TarsHeadeStructEnd || tag < nextHeadTag {
 			return false, 0, 0, nil
 		}
 		if tag == nextHeadTag {
@@ -352,7 +352,7 @@ func skipToTag(buf *bytes.Buffer, tag uint8) (bool, uint8, uint8, error) {
 }
 
 func decodeTagBoolValue(buf *bytes.Buffer, tag uint8, required bool) (bool, error) {
-	v, err := decodeTagIntegerValue(buf, tag, required, TafHeadeChar)
+	v, err := decodeTagIntegerValue(buf, tag, required, TarsHeadeChar)
 	if nil != err {
 		return false, err
 	}
@@ -363,37 +363,37 @@ func decodeTagBoolValue(buf *bytes.Buffer, tag uint8, required bool) (bool, erro
 }
 
 func decodeTagCharValue(buf *bytes.Buffer, tag uint8, required bool) (byte, error) {
-	v, err := decodeTagIntegerValue(buf, tag, required, TafHeadeChar)
+	v, err := decodeTagIntegerValue(buf, tag, required, TarsHeadeChar)
 	return byte(v), err
 }
 
 func decodeTagInt8Value(buf *bytes.Buffer, tag uint8, required bool) (int8, error) {
-	v, err := decodeTagIntegerValue(buf, tag, required, TafHeadeChar)
+	v, err := decodeTagIntegerValue(buf, tag, required, TarsHeadeChar)
 	return int8(v), err
 }
 func decodeTagUInt8Value(buf *bytes.Buffer, tag uint8, required bool) (uint8, error) {
-	v, err := decodeTagIntegerValue(buf, tag, required, TafHeadeShort)
+	v, err := decodeTagIntegerValue(buf, tag, required, TarsHeadeShort)
 	return uint8(v), err
 }
 
 func decodeTagShortValue(buf *bytes.Buffer, tag uint8, required bool) (int16, error) {
-	v, err := decodeTagIntegerValue(buf, tag, required, TafHeadeShort)
+	v, err := decodeTagIntegerValue(buf, tag, required, TarsHeadeShort)
 	return int16(v), err
 }
 func decodeTagUInt16Value(buf *bytes.Buffer, tag uint8, required bool) (uint16, error) {
-	v, err := decodeTagIntegerValue(buf, tag, required, TafHeadeInt32)
+	v, err := decodeTagIntegerValue(buf, tag, required, TarsHeadeInt32)
 	return uint16(v), err
 }
 func decodeTagIntValue(buf *bytes.Buffer, tag uint8, required bool) (int32, error) {
-	v, err := decodeTagIntegerValue(buf, tag, required, TafHeadeInt32)
+	v, err := decodeTagIntegerValue(buf, tag, required, TarsHeadeInt32)
 	return int32(v), err
 }
 func decodeTagUInt32Value(buf *bytes.Buffer, tag uint8, required bool) (uint32, error) {
-	v, err := decodeTagIntegerValue(buf, tag, required, TafHeadeInt64)
+	v, err := decodeTagIntegerValue(buf, tag, required, TarsHeadeInt64)
 	return uint32(v), err
 }
 func decodeTagLongValue(buf *bytes.Buffer, tag uint8, required bool) (int64, error) {
-	return decodeTagIntegerValue(buf, tag, required, TafHeadeInt64)
+	return decodeTagIntegerValue(buf, tag, required, TarsHeadeInt64)
 }
 
 func decodeTagIntegerValue(buf *bytes.Buffer, tag uint8, required bool, typeValue uint8) (int64, error) {
@@ -402,32 +402,32 @@ func decodeTagIntegerValue(buf *bytes.Buffer, tag uint8, required bool, typeValu
 		return 0, err
 	}
 	if flag {
-		if headType > typeValue && headType != TafHeadeZeroTag {
+		if headType > typeValue && headType != TarsHeadeZeroTag {
 			return 0, fmt.Errorf("read 'Integer' type mismatch, tag: %d, get type: %d", tag, headType)
 		}
 		switch headType {
-		case TafHeadeZeroTag:
+		case TarsHeadeZeroTag:
 			return 0, nil
-		case TafHeadeChar:
+		case TarsHeadeChar:
 			if buf.Len() < 1 {
 				return 0, ErrBufferPeekOverflow
 			}
 			return int64(buf.Next(1)[0]), nil
-		case TafHeadeShort:
+		case TarsHeadeShort:
 			if buf.Len() < 2 {
 				return 0, ErrBufferPeekOverflow
 			}
 			v := int16(0)
 			err := binary.Read(buf, binary.BigEndian, &v)
 			return int64(v), err
-		case TafHeadeInt32:
+		case TarsHeadeInt32:
 			if buf.Len() < 4 {
 				return 0, ErrBufferPeekOverflow
 			}
 			v := int32(0)
 			err := binary.Read(buf, binary.BigEndian, &v)
 			return int64(v), err
-		case TafHeadeInt64:
+		case TarsHeadeInt64:
 			if buf.Len() < 8 {
 				return 0, ErrBufferPeekOverflow
 			}
@@ -446,11 +446,11 @@ func decodeTagIntegerValue(buf *bytes.Buffer, tag uint8, required bool, typeValu
 	return 0, nil
 }
 func decodeTagFloatValue(buf *bytes.Buffer, tag uint8, required bool) (float32, error) {
-	v, err := decodeTagFloatDoubleValue(buf, tag, required, TafHeadeFloat)
+	v, err := decodeTagFloatDoubleValue(buf, tag, required, TarsHeadeFloat)
 	return float32(v), err
 }
 func decodeTagDoubleValue(buf *bytes.Buffer, tag uint8, required bool) (float64, error) {
-	return decodeTagFloatDoubleValue(buf, tag, required, TafHeadeDouble)
+	return decodeTagFloatDoubleValue(buf, tag, required, TarsHeadeDouble)
 }
 
 func decodeTagFloatDoubleValue(buf *bytes.Buffer, tag uint8, required bool, typeValue uint8) (float64, error) {
@@ -463,16 +463,16 @@ func decodeTagFloatDoubleValue(buf *bytes.Buffer, tag uint8, required bool, type
 			return 0, fmt.Errorf("read 'Integer' type mismatch, tag: %d, get type: %d.", tag, headType)
 		}
 		switch headType {
-		case TafHeadeZeroTag:
+		case TarsHeadeZeroTag:
 			return 0, nil
-		case TafHeadeFloat:
+		case TarsHeadeFloat:
 			if buf.Len() < 4 {
 				return 0, ErrBufferPeekOverflow
 			}
 			v := float32(0)
 			err := binary.Read(buf, binary.BigEndian, &v)
 			return float64(v), err
-		case TafHeadeDouble:
+		case TarsHeadeDouble:
 			if buf.Len() < 8 {
 				return 0, ErrBufferPeekOverflow
 			}
@@ -497,12 +497,12 @@ func decodeTagStringValue(buf *bytes.Buffer, tag uint8, required bool) (string, 
 	if flag {
 		strLen := 0
 		switch headType {
-		case TafHeadeString1:
+		case TarsHeadeString1:
 			if buf.Len() < 1 {
 				return "", ErrBufferPeekOverflow
 			}
 			strLen = int(buf.Next(1)[0])
-		case TafHeadeString4:
+		case TarsHeadeString4:
 			if buf.Len() < 4 {
 				return "", ErrBufferPeekOverflow
 			}
@@ -631,7 +631,7 @@ func decodeTagValue(buf *bytes.Buffer, tag uint8, required bool, v *reflect.Valu
 			}
 			if flag {
 				switch headType {
-				case TafHeadeList:
+				case TarsHeadeList:
 					vectorSize, err := decodeTagIntValue(buf, 0, true)
 					if nil != err {
 						return err
@@ -661,7 +661,7 @@ func decodeTagValue(buf *bytes.Buffer, tag uint8, required bool, v *reflect.Valu
 		}
 		if flag {
 			switch headType {
-			case TafHeadeMap:
+			case TarsHeadeMap:
 				mapSize, err := decodeTagIntValue(buf, 0, true)
 				if nil != err {
 					return err
@@ -696,7 +696,7 @@ func decodeTagValue(buf *bytes.Buffer, tag uint8, required bool, v *reflect.Valu
 		xv := v.Elem()
 		return decodeTagValue(buf, tag, required, &xv)
 	case reflect.Struct:
-		ts, ok := v.Addr().Interface().(TafStruct)
+		ts, ok := v.Addr().Interface().(TarsStruct)
 		if ok {
 			return DecodeTagStructValue(buf, ts, tag, required)
 		}
@@ -707,15 +707,15 @@ func decodeTagValue(buf *bytes.Buffer, tag uint8, required bool, v *reflect.Valu
 	return nil
 }
 
-type TafStruct interface {
+type TarsStruct interface {
 	Encode(buf *bytes.Buffer) error
 	Decode(buf *bytes.Buffer) error
 }
 
-func EncodeTagStructValue(buf *bytes.Buffer, v TafStruct, tag uint8) error {
-	encodeHeaderTag(tag, uint8(TafHeadeStructBegin), buf)
+func EncodeTagStructValue(buf *bytes.Buffer, v TarsStruct, tag uint8) error {
+	encodeHeaderTag(tag, uint8(TarsHeadeStructBegin), buf)
 	v.Encode(buf)
-	encodeHeaderTag(0, uint8(TafHeadeStructEnd), buf)
+	encodeHeaderTag(0, uint8(TarsHeadeStructEnd), buf)
 	return nil
 }
 func EncodeTagInt64Value(buf *bytes.Buffer, v int64, tag uint8) error {
@@ -757,26 +757,26 @@ func EncodeTagByteValue(buf *bytes.Buffer, v byte, tag uint8) error {
 }
 
 func EncodeTagBytesValue(buf *bytes.Buffer, v []byte, tag uint8) error {
-	encodeHeaderTag(tag, uint8(TafHeadeSimpleList), buf)
-	encodeHeaderTag(0, uint8(TafHeadeChar), buf)
+	encodeHeaderTag(tag, uint8(TarsHeadeSimpleList), buf)
+	encodeHeaderTag(0, uint8(TarsHeadeChar), buf)
 	EncodeTagInt32Value(buf, int32(len(v)), 0)
 	buf.Write(v)
 	return nil
 }
 func EncodeTagStringValue(buf *bytes.Buffer, v string, tag uint8) error {
 	if len(v) > 255 {
-		encodeHeaderTag(tag, uint8(TafHeadeString4), buf)
+		encodeHeaderTag(tag, uint8(TarsHeadeString4), buf)
 		vlen := uint32(len(v))
 		binary.Write(buf, binary.BigEndian, vlen)
 	} else {
-		encodeHeaderTag(tag, uint8(TafHeadeString1), buf)
+		encodeHeaderTag(tag, uint8(TarsHeadeString1), buf)
 		buf.Write([]byte{byte(len(v))})
 	}
 	buf.Write([]byte(v))
 	return nil
 }
 func EncodeTagStringsValue(buf *bytes.Buffer, v []string, tag uint8) error {
-	encodeHeaderTag(tag, uint8(TafHeadeList), buf)
+	encodeHeaderTag(tag, uint8(TarsHeadeList), buf)
 	EncodeTagInt32Value(buf, int32(len(v)), 0)
 	for _, s := range v {
 		EncodeTagStringValue(buf, s, 0)
@@ -786,13 +786,13 @@ func EncodeTagStringsValue(buf *bytes.Buffer, v []string, tag uint8) error {
 
 func EncodeTagVectorValue(buf *bytes.Buffer, v interface{}, tag uint8) error {
 	val := reflect.ValueOf(v)
-	//tafStructType := reflect.TypeOf((*TafStruct)(nil)).Elem()
+	//tarsStructType := reflect.TypeOf((*TarsStruct)(nil)).Elem()
 	if val.Kind() == reflect.Array || val.Kind() == reflect.Slice {
-		encodeHeaderTag(tag, uint8(TafHeadeList), buf)
+		encodeHeaderTag(tag, uint8(TarsHeadeList), buf)
 		EncodeTagInt32Value(buf, int32(val.Len()), 0)
 		for i := 0; i < val.Len(); i++ {
 			e := val.Index(i)
-			ts, ok := e.Addr().Interface().(TafStruct)
+			ts, ok := e.Addr().Interface().(TarsStruct)
 			if ok {
 				EncodeTagStructValue(buf, ts, 0)
 			} else {
@@ -800,7 +800,7 @@ func EncodeTagVectorValue(buf *bytes.Buffer, v interface{}, tag uint8) error {
 			}
 		}
 	} else {
-		return ErrNotTafStruct
+		return ErrNotTarsStruct
 	}
 	return nil
 }
@@ -881,7 +881,7 @@ func DecodeTagBytesValue(buf *bytes.Buffer, v *[]byte, tag uint8, required bool)
 		}
 		return nil
 	}
-	if headType != TafHeadeSimpleList {
+	if headType != TarsHeadeSimpleList {
 		return fmt.Errorf("read 'vector<byte>' type mismatch, tag: %d, get type: %d", tag, headType)
 	}
 	_, cheadType, clen, err := peekTypeTag(buf)
@@ -889,7 +889,7 @@ func DecodeTagBytesValue(buf *bytes.Buffer, v *[]byte, tag uint8, required bool)
 		return err
 	}
 	buf.Next(clen)
-	if cheadType != TafHeadeChar {
+	if cheadType != TarsHeadeChar {
 		return fmt.Errorf("type mismatch, tag: %d, type: %d, %d", tag, headType, cheadType)
 	}
 	vlen, err := decodeTagIntValue(buf, 0, true)
@@ -913,7 +913,7 @@ func DecodeTagStringsValue(buf *bytes.Buffer, v *[]string, tag uint8, required b
 		}
 		return nil
 	}
-	if headType != TafHeadeList {
+	if headType != TarsHeadeList {
 		return fmt.Errorf("read 'vector<string>' type mismatch, tag: %d, get type: %d", tag, headType)
 	}
 	vlen, err := decodeTagIntValue(buf, 0, true)
@@ -947,7 +947,7 @@ func DecodeTagVectorValue(buf *bytes.Buffer, v interface{}, tag uint8, required 
 	return decodeTagValue(buf, tag, required, &rv)
 }
 
-func DecodeTagStructValue(buf *bytes.Buffer, v TafStruct, tag uint8, required bool) error {
+func DecodeTagStructValue(buf *bytes.Buffer, v TarsStruct, tag uint8, required bool) error {
 	flag, headType, _, err := skipToTag(buf, tag)
 	if nil != err {
 		return err
@@ -958,7 +958,7 @@ func DecodeTagStructValue(buf *bytes.Buffer, v TafStruct, tag uint8, required bo
 		}
 		return nil
 	}
-	if headType != TafHeadeStructBegin {
+	if headType != TarsHeadeStructBegin {
 		return fmt.Errorf("read 'struct' type mismatch, tag: %d, get type: %d", tag, headType)
 	}
 	err = v.Decode(buf)
