@@ -75,7 +75,7 @@ func encodeTagInt8Value(buf *bytes.Buffer, tag uint8, bv int8) error {
 	return nil
 }
 func encodeTagShortValue(buf *bytes.Buffer, tag uint8, sv int16) error {
-	if sv < (-128) && sv <= 127 {
+	if sv >= (-128) && sv <= 127 {
 		return encodeTagInt8Value(buf, tag, int8(sv))
 	} else {
 		encodeHeaderTag(tag, uint8(TarsHeadeShort), buf)
