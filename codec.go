@@ -186,7 +186,7 @@ func encodeValueWithTag(buf *bytes.Buffer, tag uint8, v *reflect.Value) error {
 		return encodeValueWithTag(buf, tag, &rv)
 	case reflect.Struct:
 		encodeHeaderTag(tag, uint8(TarsHeadeStructBegin), buf)
-		ts, ok := v.Interface().(TarsStruct)
+		ts, ok := v.Interface().(TarsEncoder)
 		if !ok {
 			log.Printf("Invalid type:%v", v.Type())
 		} else {
@@ -696,7 +696,7 @@ func decodeTagValue(buf *bytes.Buffer, tag uint8, required bool, v *reflect.Valu
 		xv := v.Elem()
 		return decodeTagValue(buf, tag, required, &xv)
 	case reflect.Struct:
-		ts, ok := v.Addr().Interface().(TarsStruct)
+		ts, ok := v.Addr().Interface().(TarsDecoder)
 		if ok {
 			return DecodeTagStructValue(buf, ts, tag, required)
 		}
@@ -707,12 +707,19 @@ func decodeTagValue(buf *bytes.Buffer, tag uint8, required bool, v *reflect.Valu
 	return nil
 }
 
-type TarsStruct interface {
+type TarsEncoder interface {
 	Encode(buf *bytes.Buffer) error
-	Decode(buf *bytes.Buffer) error
 }
 
-func EncodeTagStructValue(buf *bytes.Buffer, v TarsStruct, tag uint8) error {
+type TarsDecoder interface {
+	Decode(buf *bytes.Buffer) error
+}
+type TarsStruct interface {
+	TarsEncoder
+	TarsDecoder
+}
+
+func EncodeTagStructValue(buf *bytes.Buffer, v TarsEncoder, tag uint8) error {
 	encodeHeaderTag(tag, uint8(TarsHeadeStructBegin), buf)
 	v.Encode(buf)
 	encodeHeaderTag(0, uint8(TarsHeadeStructEnd), buf)
@@ -792,7 +799,7 @@ func EncodeTagVectorValue(buf *bytes.Buffer, v interface{}, tag uint8) error {
 		EncodeTagInt32Value(buf, int32(val.Len()), 0)
 		for i := 0; i < val.Len(); i++ {
 			e := val.Index(i)
-			ts, ok := e.Addr().Interface().(TarsStruct)
+			ts, ok := e.Addr().Interface().(TarsEncoder)
 			if ok {
 				EncodeTagStructValue(buf, ts, 0)
 			} else {
@@ -947,7 +954,7 @@ func DecodeTagVectorValue(buf *bytes.Buffer, v interface{}, tag uint8, required 
 	return decodeTagValue(buf, tag, required, &rv)
 }
 
-func DecodeTagStructValue(buf *bytes.Buffer, v TarsStruct, tag uint8, required bool) error {
+func DecodeTagStructValue(buf *bytes.Buffer, v TarsDecoder, tag uint8, required bool) error {
 	flag, headType, _, err := skipToTag(buf, tag)
 	if nil != err {
 		return err
