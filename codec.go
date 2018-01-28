@@ -803,7 +803,12 @@ func EncodeTagVectorValue(buf *bytes.Buffer, v interface{}, tag uint8) error {
 			if ok {
 				EncodeTagStructValue(buf, ts, 0)
 			} else {
-				encodeValueWithTag(buf, 0, &e)
+				switch e.Kind() {
+				case reflect.Slice, reflect.Array:
+					EncodeTagVectorValue(buf, e.Interface(), 0)
+				default:
+					encodeValueWithTag(buf, 0, &e)
+				}
 			}
 		}
 	} else {
