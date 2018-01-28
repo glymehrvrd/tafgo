@@ -604,7 +604,7 @@ func decodeTagValue(buf *bytes.Buffer, tag uint8, required bool, v *reflect.Valu
 			return err
 		}
 	case reflect.Array, reflect.Slice:
-		if v.IsNil() {
+		if v.Type().Kind() == reflect.Slice && v.IsNil() {
 			v.Set(reflect.MakeSlice(v.Type(), 0, 0))
 		}
 		switch v.Type().Elem().Kind() {
@@ -636,7 +636,10 @@ func decodeTagValue(buf *bytes.Buffer, tag uint8, required bool, v *reflect.Valu
 					if nil != err {
 						return err
 					}
-					sv := reflect.MakeSlice(v.Type(), int(vectorSize), int(vectorSize))
+					sv := *v
+					if v.Type().Kind() == reflect.Slice {
+						sv = reflect.MakeSlice(v.Type(), int(vectorSize), int(vectorSize))
+					}
 					for i := 0; i < int(vectorSize); i++ {
 						iv := sv.Index(i)
 						err = decodeTagValue(buf, 0, true, &(iv))
@@ -799,16 +802,21 @@ func EncodeTagVectorValue(buf *bytes.Buffer, v interface{}, tag uint8) error {
 		EncodeTagInt32Value(buf, int32(val.Len()), 0)
 		for i := 0; i < val.Len(); i++ {
 			e := val.Index(i)
-			ts, ok := e.Addr().Interface().(TarsEncoder)
-			if ok {
-				EncodeTagStructValue(buf, ts, 0)
-			} else {
-				switch e.Kind() {
-				case reflect.Slice, reflect.Array:
-					EncodeTagVectorValue(buf, e.Interface(), 0)
-				default:
+			switch e.Kind() {
+			case reflect.Slice, reflect.Array:
+				EncodeTagVectorValue(buf, e.Interface(), 0)
+			default:
+				var ts TarsEncoder
+				ok := false
+				if e.CanAddr() {
+					ts, ok = e.Addr().Interface().(TarsEncoder)
+				}
+				if ok {
+					EncodeTagStructValue(buf, ts, 0)
+				} else {
 					encodeValueWithTag(buf, 0, &e)
 				}
+
 			}
 		}
 	} else {
