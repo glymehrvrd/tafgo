@@ -142,7 +142,7 @@ func encodeValueWithTag(buf *bytes.Buffer, tag uint8, v *reflect.Value) error {
 	case reflect.Float64:
 		return encodeTagDoubleValue(buf, tag, v.Float())
 	case reflect.Array, reflect.Slice:
-		if v.IsNil() {
+		if v.Type().Kind() == reflect.Slice && v.IsNil() {
 			rv := reflect.MakeSlice(v.Type(), 0, 0)
 			v = &rv
 		}
@@ -802,21 +802,15 @@ func EncodeTagVectorValue(buf *bytes.Buffer, v interface{}, tag uint8) error {
 		EncodeTagInt32Value(buf, int32(val.Len()), 0)
 		for i := 0; i < val.Len(); i++ {
 			e := val.Index(i)
-			switch e.Kind() {
-			case reflect.Slice, reflect.Array:
-				EncodeTagVectorValue(buf, e.Interface(), 0)
-			default:
-				var ts TarsEncoder
-				ok := false
-				if e.CanAddr() {
-					ts, ok = e.Addr().Interface().(TarsEncoder)
-				}
-				if ok {
-					EncodeTagStructValue(buf, ts, 0)
-				} else {
-					encodeValueWithTag(buf, 0, &e)
-				}
-
+			var ts TarsEncoder
+			ok := false
+			if e.CanAddr() {
+				ts, ok = e.Addr().Interface().(TarsEncoder)
+			}
+			if ok {
+				EncodeTagStructValue(buf, ts, 0)
+			} else {
+				encodeValueWithTag(buf, 0, &e)
 			}
 		}
 	} else {
