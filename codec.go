@@ -146,7 +146,7 @@ func encodeValueWithTag(buf *bytes.Buffer, tag uint8, v *reflect.Value) error {
 			rv := reflect.MakeSlice(v.Type(), 0, 0)
 			v = &rv
 		}
-		if v.Elem().Type().Kind() == reflect.Uint8 {
+		if v.Type().Elem().Kind() == reflect.Uint8 {
 			encodeHeaderTag(tag, uint8(TarsHeadeSimpleList), buf)
 			encodeHeaderTag(0, uint8(TarsHeadeChar), buf)
 			encodeTagIntValue(buf, 0, int32(v.Len()))
