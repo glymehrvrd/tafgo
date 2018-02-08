@@ -174,7 +174,12 @@ func encodeValueWithTag(buf *bytes.Buffer, tag uint8, v *reflect.Value) error {
 			for i := 0; i < len(ks); i++ {
 				encodeValueWithTag(buf, 0, &(ks[i]))
 				vv := v.MapIndex(ks[i])
-				encodeValueWithTag(buf, 1, &vv)
+				switch vv.Kind() {
+				case reflect.Slice, reflect.Array:
+					EncodeTagVectorValue(buf, vv.Interface(), 1)
+				default:
+					encodeValueWithTag(buf, 1, &vv)
+				}
 			}
 		}
 		return nil
