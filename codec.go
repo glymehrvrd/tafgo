@@ -968,7 +968,7 @@ func DecodeTagStructValue(buf *bytes.Buffer, v TarsDecoder, tag uint8, required 
 	}
 	if !flag {
 		if required {
-			return fmt.Errorf("require field not exist, tag:%d, type %T", tag, v)
+			return fmt.Errorf("require field not exist, tag:%d, type:%T", tag, v)
 		}
 		return nil
 	}
